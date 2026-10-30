@@ -77,6 +77,12 @@ pub const TitleDialog = extern struct {
         /// The initial value of the entry field.
         initial_value: ?[:0]const u8 = null,
 
+        /// Handler id for the one-shot "map" signal we attach to `entry` in
+        /// `present` so that the entry receives keyboard focus the first time
+        /// it becomes visible inside the presented dialog. Zero means either
+        /// we haven't attached it yet or we already disconnected.
+        focus_map_id: c_ulong = 0,
+
         // Template bindings
         target: Target,
         entry: *gtk.Entry,
@@ -116,6 +122,23 @@ pub const TitleDialog = extern struct {
         // Set the title for the dialog
         self.as(adw.AlertDialog).setHeading(priv.target.title());
 
+        // `AdwAlertDialog.choose` presents asynchronously and the entry is
+        // an extra-child that libadwaita reparents into the dialog window at
+        // map time. Because of that race the blueprint's `focus-widget:
+        // entry;` doesn't reliably win, and users are stuck clicking the
+        // entry a second time before they can type. We attach a one-shot
+        // "map" handler that grabs keyboard focus on the entry the first
+        // time it's actually mapped inside the dialog window.
+        if (priv.focus_map_id == 0) {
+            priv.focus_map_id = gtk.Widget.signals.map.connect(
+                priv.entry,
+                *Self,
+                entryMapped,
+                self,
+                .{},
+            );
+        }
+
         // Show it. We could also just use virtual methods to bind to
         // response but this is pretty simple.
         self.as(adw.AlertDialog).choose(
@@ -124,6 +147,24 @@ pub const TitleDialog = extern struct {
             alertDialogReady,
             self,
         );
+    }
+
+    /// One-shot handler attached in `present`. Grabs keyboard focus for the
+    /// entry the first time it maps, then disconnects itself so subsequent
+    /// map/unmap cycles (e.g. transient hide/show) don't steal focus back.
+    fn entryMapped(
+        entry: *gtk.Entry,
+        self: *Self,
+    ) callconv(.c) void {
+        const priv = self.private();
+        if (priv.focus_map_id != 0) {
+            gobject.signalHandlerDisconnect(
+                entry.as(gobject.Object),
+                priv.focus_map_id,
+            );
+            priv.focus_map_id = 0;
+        }
+        _ = entry.as(gtk.Widget).grabFocus();
     }
 
     fn alertDialogReady(

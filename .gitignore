@@ -32,3 +32,6 @@ glad.zip
 vgcore.*
 
 /sprite_face_test*
+
+# release packaging output
+dist-out/

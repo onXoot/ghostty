@@ -1,0 +1,122 @@
+name: Release Linux x86_64
+
+# Builds a ReleaseFast Linux x86_64 build of Ghostty and publishes a .deb plus
+# a portable tarball. Triggered by pushing a tag (e.g. v1.4.1) and can also be
+# started manually from the Actions tab.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (defaults to the tag, or \"tip\")"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-linux-x86_64-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build linux x86_64 release
+    runs-on: ubuntu-latest
+    # Build inside Debian trixie so the resulting binaries link against a
+    # glibc/GTK4 that matches the target distribution.
+    container:
+      image: debian:trixie
+      options: --user root
+    steps:
+      - name: Install base tooling
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git gh xz-utils
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Full history so the build can stamp the version via git describe.
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get install -y --no-install-recommends \
+            build-essential pkg-config gettext \
+            libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev \
+            libonig-dev libxml2-dev libxml2-utils \
+            libfreetype-dev libfontconfig-dev libpng-dev zlib1g-dev \
+            python3 python3-venv python3-dev python3-gi \
+            dpkg-dev fakeroot file
+          # Debian ships blueprint-compiler 0.16; Ghostty (git checkout)
+          # requires >= 0.20.
+          python3 -m venv /opt/blueprint
+          /opt/blueprint/bin/pip install --no-cache-dir blueprint-compiler==0.22.2
+          ln -sf /opt/blueprint/bin/blueprint-compiler /usr/local/bin/blueprint-compiler
+          blueprint-compiler --version
+
+      - name: Install Zig
+        run: |
+          curl -fsSL -o /tmp/zig.tar.xz https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
+          echo "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026  /tmp/zig.tar.xz" | sha256sum -c -
+          mkdir -p /opt/zig
+          tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1
+          echo "/opt/zig" >> "$GITHUB_PATH"
+          /opt/zig/zig version
+
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION="$GITHUB_REF_NAME"
+          elif [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="tip"
+          fi
+          VERSION=$(printf "%s" "$VERSION" | sed "s/^v//")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version: $VERSION"
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./packaging/linux/build-release.sh "$VERSION"
+
+      - name: Smoke test the package
+        run: |
+          dpkg -i dist-out/ghostty_*.deb
+          ghostty --version
+          dpkg-deb -I dist-out/ghostty_*.deb
+          dpkg-deb -c dist-out/ghostty_*.deb | wc -l
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostty-linux-x86_64
+          path: dist-out/*
+          if-no-files-found: error
+
+      - name: Publish release assets
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist-out/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" dist-out/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Ghostty $VERSION (linux x86_64)" \
+              --generate-notes
+          fi

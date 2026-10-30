@@ -53,11 +53,11 @@ jobs:
             libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev \
             libonig-dev libxml2-dev libxml2-utils \
             libfreetype-dev libfontconfig-dev libpng-dev zlib1g-dev \
-            python3 python3-venv python3-dev python3-gi \
+            python3 python3-venv python3-dev python3-gi python3-cairo \
             dpkg-dev fakeroot file
           # Debian ships blueprint-compiler 0.16; Ghostty (git checkout)
           # requires >= 0.20.
-          python3 -m venv /opt/blueprint
+          python3 -m venv --system-site-packages /opt/blueprint
           /opt/blueprint/bin/pip install --no-cache-dir blueprint-compiler==0.22.2
           ln -sf /opt/blueprint/bin/blueprint-compiler /usr/local/bin/blueprint-compiler
           blueprint-compiler --version

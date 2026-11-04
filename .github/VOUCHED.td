@@ -53,9 +53,11 @@ anhthang
 anmitalidev
 anthonyzhoon
 aprilnea
+arc-source-coder
 aredmondd
 arneshbanerjee
 arvin7liu
+aryanhamedani
 athaapa
 atomk
 aurelleb
@@ -80,12 +82,14 @@ brentschroeter
 brianc442
 by-nelson
 c0x0o
+cammeresi
 carldaws
 carlvillads
 cespare
 charliie-dev
 chernetskyi
 chronologos
+clavinjune
 clemg
 clinta
 cmwetherell
@@ -101,8 +105,10 @@ d-dudas
 daiimus
 damyanbogoev
 danneu
+danudey
 danulqua
 dariogriffo
+database64128
 dave92082
 davey-hughes
 davidhodge
@@ -128,6 +134,7 @@ douglas-macgregor
 drepper
 dungdm93
 dzhlobo
+edsarmiento
 ekaterinepapava
 ekusiadadus
 elias8
@@ -154,6 +161,7 @@ fru1tworld
 gaborbernat
 gadgetman6
 gagbo
+ghdtjdwn
 ghokun
 gmile
 gordonbondon
@@ -166,6 +174,7 @@ h3nock
 hackattack
 hakonhagland
 halosatrio
+hamidp
 heaths
 heddxh heddxh
 heitoraugustoln
@@ -241,6 +250,7 @@ mac0ne
 maddythewisp
 magnussp
 mahnokropotkinvich
+mangkoran
 marijagjorgjieva
 markdorison
 markhuot
@@ -408,6 +418,8 @@ yabbal
 yak3d
 yamshta
 ydah
+yeager
+yinxiangshi
 -zaviro
 zenangst
 zenyr
